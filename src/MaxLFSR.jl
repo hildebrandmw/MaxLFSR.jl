@@ -1,6 +1,6 @@
 module MaxLFSR
 
-export LFSR, ConstLFSR
+export LFSR
 
 # Coefficients are taken from https://users.ece.cmu.edu/~koopman/lfsr/index.html
 #
@@ -21,9 +21,7 @@ function nbits(x::Integer)
     return max(bits, 4)
 end
 
-# Include 2 types of LFRS - a type table one and an AoT one.
 abstract type AbstractLFSR end
-Base.eltype(::AbstractLFSR) = Int
 
 # Constant Type LFSR
 struct LFSR <: AbstractLFSR
@@ -32,7 +30,57 @@ struct LFSR <: AbstractLFSR
     seed::Int
 end
 
-function LFSR(length; seed = 1)
+Base.show(io::IO, A::LFSR) = print(io, "LFSR for 1:$(length(A)) starting at $(seed(A))")
+
+"""
+    LFSR(length; seed = 1)
+
+Construct a maximum length shift register that will randomly cycle once through the numbers 
+`1` to `length`.
+
+Keyword argument `seed` defines the starting point for the LFSR.
+
+Example
+-------
+```julia
+# Standard LFSR
+julia> A = LFSR(10)
+LFSR for 1:10 starting at 1
+
+julia> for i in A
+           println(i)
+       end
+1
+9
+7
+10
+5
+6
+3
+8
+4
+2
+
+# Change the starting location
+julia> A = LFSR(10; seed = 7)
+LFSR for 1:10 starting at 7
+
+julia> for i in A
+           println(i)
+       end
+7
+10
+5
+6
+3
+8
+4
+2
+1
+9
+```
+"""
+function LFSR(length::Integer; seed = 1)
     # Bounds checking on `seed`
     if seed < 1 || seed > length
         throw(ArgumentError("Expected `seed` to be between 1 and `length`"))
@@ -44,27 +92,10 @@ function LFSR(length; seed = 1)
     return LFSR(length, mask, seed)
 end
 
+Base.eltype(L::LFSR) = Int
 Base.length(L::LFSR) = L.len
 mask(L::LFSR) = L.mask
 seed(L::LFSR) = L.seed
-
-# Compile time LFSR
-struct ConstLFSR{len, mask, seed} <: AbstractLFSR end
-function ConstLFSR(length; seed = 1)
-    # Bounds checking on `seed`
-    if seed < 1 || seed > length
-        throw(ArgumentError("Expected `seed` to be between 1 and `length`"))
-    end
-
-    # Find the number of bits needed to represent length
-    bits = nbits(length)
-    mask = FEEDBACK[bits]
-    return ConstLFSR{length, mask, seed}()
-end
-
-Base.length(::ConstLFSR{len}) where {len} = len
-mask(::ConstLFSR{len, _mask}) where {len, _mask} = _mask
-seed(::ConstLFSR{len, mask, _seed}) where {len, mask, _seed} = _seed
 
 # Iterator Interface
 @inline Base.iterate(A::AbstractLFSR) = (seed(A), seed(A))
