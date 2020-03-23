@@ -1,6 +1,7 @@
 module MaxLFSR
 
-export LFSR
+export LFSR, FastLFSR
+
 
 # Coefficients are taken from https://users.ece.cmu.edu/~koopman/lfsr/index.html
 #
@@ -23,19 +24,24 @@ end
 
 abstract type AbstractLFSR end
 
-# Constant Type LFSR
+#####
+##### Generic Length LFSR
+#####
 struct LFSR <: AbstractLFSR
     len::Int
     mask::Int
     seed::Int
 end
 
-Base.show(io::IO, A::LFSR) = print(io, "LFSR for 1:$(length(A)) starting at $(seed(A))")
+function Base.show(io::IO, A::T) where {T <: AbstractLFSR}
+    print(io, "$(string(T)) for 1:$(length(A)) starting at $(seed(A))")
+end
+
 
 """
     LFSR(length; seed = 1)
 
-Construct a maximum length shift register that will randomly cycle once through the numbers 
+Construct a maximum length shift register that will randomly cycle once through the numbers
 `1` to `length`.
 
 Keyword argument `seed` defines the starting point for the LFSR.
@@ -92,10 +98,10 @@ function LFSR(length::Integer; seed = 1)
     return LFSR(length, mask, seed)
 end
 
-Base.eltype(L::LFSR) = Int
-Base.length(L::LFSR) = L.len
-mask(L::LFSR) = L.mask
-seed(L::LFSR) = L.seed
+Base.eltype(L::AbstractLFSR) = Int
+Base.length(L::AbstractLFSR) = L.len
+mask(L::AbstractLFSR) = L.mask
+seed(L::AbstractLFSR) = L.seed
 
 # Iterator Interface
 @inline Base.iterate(A::AbstractLFSR) = (seed(A), seed(A))
@@ -111,6 +117,103 @@ seed(L::LFSR) = L.seed
         # Otherwise, perform a length check and exit.
         (x <= length(A)) && return (x, x)
     end
+end
+
+#####
+##### Fast LFSR
+#####
+struct FastLFSR <: AbstractLFSR
+    len::Int
+    mask::Int
+    seed::Int
+end
+
+"""
+    FastLFSR(length; seed = 1)
+
+Construct a **fast** maximum length shift register that will randomly cycle once through the numbers
+`1` to `length`.
+**NOTE:** This type requires `ispow2(length + 1) == true`.
+
+Keyword argument `seed` defines the starting point for the LFSR.
+
+Example
+-------
+```julia
+# Standard FastLFSR
+julia> A = FastLFSR(15)
+LFSR for 1:10 starting at 1
+
+julia> println.(A);
+1
+9
+13
+15
+14
+7
+10
+5
+11
+12
+6
+3
+8
+4
+2
+
+# Change the starting location
+julia> A = LFSR(15; seed = 7)
+FastLFSR for 1:15 starting at 7
+
+julia> println.(A);
+7
+10
+5
+11
+12
+6
+3
+8
+4
+2
+1
+9
+13
+15
+14
+
+# Errors if length is incorrect.
+julia> FastLFSR(10)
+ERROR: ArgumentError: FastLFSR expects `ispow2(length + 1) == true`
+```
+"""
+function FastLFSR(length::Integer; seed = 1)
+    # Check that `length` is a power of 2
+    if !ispow2(length + 1)
+        throw(ArgumentError("FastLFSR expects `ispow2(length + 1) == true`"))
+    end
+
+    # Because we're restricted to a minimum of 4 bits, the minimum length we can provide
+    # is 15
+    if length < 15
+        throw(ArgumentError("Length must be greater than 15!"))
+    end
+
+    # Bounds checking on `seed`
+    if seed < 1 || seed > length
+        throw(ArgumentError("Expected `seed` to be between 1 and `length`"))
+    end
+
+    # Find the number of bits needed to represent length
+    bits = nbits(length)
+    mask = FEEDBACK[bits]
+    return FastLFSR(length, mask, seed)
+end
+
+@inline function Base.iterate(A::FastLFSR, x)
+    m = isodd(x) ? mask(A) : 0
+    x = xor(x >> 1, m)
+    return (x == seed(A)) ? nothing : (x, x)
 end
 
 end # module
