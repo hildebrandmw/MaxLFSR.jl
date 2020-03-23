@@ -6,7 +6,7 @@ The sole exported function from this package is
 
     LFSR(length; seed = 1)
 
-which, constructs a maximum length shift register that will randomly cycle once through the numbers `1` to `length`. 
+which, constructs a maximum length shift register that will randomly cycle once through the numbers `1` to `length`.
 Keyword argument `seed` defines the starting point for the LFSR.
 
 ## Example
@@ -46,6 +46,31 @@ julia> for i in A
 2
 1
 9
+```
+
+## FastLFSR
+
+If your desired length satisfies `ispow2(length + 1)`, then you can take advantage of the `FastLFSR`, which iterates a little more quickly.
+```julia
+julia> A = FastLFSR(15)
+LFSR for 1:10 starting at 1
+
+julia> println.(A);
+1
+9
+13
+15
+14
+7
+10
+5
+11
+12
+6
+3
+8
+4
+2
 ```
 
 ## Implementation
