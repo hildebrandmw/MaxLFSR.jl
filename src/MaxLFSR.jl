@@ -2,7 +2,6 @@ module MaxLFSR
 
 export LFSR, FastLFSR
 
-
 # Coefficients are taken from https://users.ece.cmu.edu/~koopman/lfsr/index.html
 #
 # Index by the number of bits needed. Using fewer than 4 bits is apparently not supported,
@@ -108,8 +107,7 @@ seed(L::AbstractLFSR) = L.seed
 @inline function Base.iterate(A::AbstractLFSR, x)
     # Iterate until we reach a result that is within the correct range.
     while true
-        m = isodd(x) ? mask(A) : 0
-        x = xor(x >> 1, m)
+        x = step(A, x)
 
         # If we arrive back at out seed, we're done
         (x == seed(A)) && return nothing
@@ -117,6 +115,11 @@ seed(L::AbstractLFSR) = L.seed
         # Otherwise, perform a length check and exit.
         (x <= length(A)) && return (x, x)
     end
+end
+
+@inline function step(A::AbstractLFSR, x)
+    m = isodd(x) ? mask(A) : 0
+    return xor(x >> 1, m)
 end
 
 #####
@@ -211,8 +214,7 @@ function FastLFSR(length::Integer; seed = 1)
 end
 
 @inline function Base.iterate(A::FastLFSR, x)
-    m = isodd(x) ? mask(A) : 0
-    x = xor(x >> 1, m)
+    x = step(A, x)
     return (x == seed(A)) ? nothing : (x, x)
 end
 
