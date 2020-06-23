@@ -199,7 +199,7 @@ function FastLFSR(length::Integer; seed = 1)
     # Because we're restricted to a minimum of 4 bits, the minimum length we can provide
     # is 15
     if length < 15
-        throw(ArgumentError("Length must be greater than 15!"))
+        throw(ArgumentError("Length must be 15 or greater!"))
     end
 
     # Bounds checking on `seed`
